@@ -1,0 +1,108 @@
+{
+  "name": "Gordon Auto Price Watcher",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": [
+          {
+            "mode": "every5Minutes"
+          }
+        ]
+      },
+      "id": "cron-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://api.coingecko.com/api/v3/simple/token_price/solana",
+        "jsonParameters": true,
+        "queryParametersJson": "{\"contract_addresses\": \"3UczZL9gZMEoMvbn1TCY8yMxGf8n9n9F1e1PtU7FMRaA\", \"vs_currencies\": \"usd\", \"include_24hr_change\": \"true\"}",
+        "options": {}
+      },
+      "id": "fetch-price",
+      "name": "Fetch Live $PIZZA Price",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = $json['3uczzl9gzmeomvbn1tcy8ymxgf8n9n9f1e1ptu7fmraa'];\nconst price = data.usd;\nconst change = data.usd_24h_change;\n\nif (Math.abs(change) >= 5) {\n  return [\n    {\n      json: {\n        price: price,\n        percentChange: change,\n        trade: change > 0 ? 'SELL' : 'BUY'\n      }\n    }\n  ];\n}\nreturn null;"
+      },
+      "id": "check-threshold",
+      "name": "Check Price Change",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://discord.com/api/webhooks/1394510901754855586/8vOw2CAOPpHCfuXSGVMFZrEtq0Ba5jjdFgIjR-5HHvzp-tb0TgNk1MsuKk-KLtdjQ86o",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "{\n  \"content\": \"\ud83d\udea8 $PIZZA Alert: Price is ${{ $json.price.toFixed(6) }} USD ({{ $json.percentChange.toFixed(2) }}%). Trade triggered: {{ $json.trade }}\",\n  \"username\": \"GordonGekko\",\n  \"avatar_url\": \"https://i.imgur.com/NbPBzJl.png\"\n}"
+      },
+      "id": "send-alert",
+      "name": "Send Discord Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Live $PIZZA Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Live $PIZZA Price": {
+      "main": [
+        [
+          {
+            "node": "Check Price Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Price Change": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "tags": [],
+  "versionId": "1"
+}
